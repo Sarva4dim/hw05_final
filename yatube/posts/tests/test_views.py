@@ -32,7 +32,7 @@ class PostPagesTests(TestCase):
             b'\x0A\x00\x3B'
         )
         cls.uploaded = SimpleUploadedFile(
-            name='small.gif',
+            name='gif',
             content=cls.gif,
             content_type='image/gif'
         )
@@ -79,6 +79,7 @@ class PostPagesTests(TestCase):
         response = self.authorized_client.get(reverse('posts:index'))
         first_object = response.context['page_obj'][0]
         self.assertEqual(first_object.text, self.post.text)
+        self.assertEqual(first_object.image, self.post.image)
 
     def test_group_show_correct_context(self):
         response = self.authorized_client.get(reverse('posts:group_list',
@@ -87,6 +88,7 @@ class PostPagesTests(TestCase):
         first_object = response.context['page_obj'][0]
         self.assertEqual(first_object.text, self.post.text)
         self.assertEqual(first_object.group, self.post.group)
+        self.assertEqual(first_object.image, self.post.image)
 
     def test_profile_show_correct_context(self):
         response = self.authorized_client.get(reverse('posts:profile',
@@ -96,6 +98,7 @@ class PostPagesTests(TestCase):
         first_object = response.context['page_obj'][0]
         self.assertEqual(first_object.text, self.post.text)
         self.assertEqual(first_object.author, self.post.author)
+        self.assertEqual(first_object.image, self.post.image)
 
     def test_detail_show_correct_context(self):
         response = self.authorized_client.get(reverse('posts:post_detail',
@@ -105,6 +108,7 @@ class PostPagesTests(TestCase):
         self.assertEqual(first_object.text, self.post.text)
         self.assertEqual(first_object.author.posts.count(),
                          self.post.author.posts.count())
+        self.assertEqual(first_object.image, self.post.image)
 
     def test_create_show_correct_context(self):
         response = self.authorized_client.get(reverse('posts:post_create'))
