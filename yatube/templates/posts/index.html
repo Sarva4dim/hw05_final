@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load cache %}
+{% load thumbnail %}
+{% cache 20 sidebar %}
+{% block title %}Последние обновления на сайте{% endblock %}
+{% block content %}
+  {% include 'posts/includes/switcher.html' %}
+    <h1>Последние обновления на сайте</h1>
+  {% for post in page_obj %}
+  <article>
+    <ul>
+        <dl class="row">
+        {% if post.group %}
+          <dt class="col-sm-3">Группа:</dt>
+          <dd class="col-sm-9">{{ post.group.title }}</dd>
+        {% endif %}
+          <dt class="col-sm-3">Автор:</dt>
+          <dd class="col-sm-9">{{ post.author.get_full_name }}</dd>
+          <dt class="col-sm-3">Дата публикации:</dt>
+          <dd class="col-sm-9">{{ post.pub_date|date:"d E Y" }}</dd>
+          <dt class="col-sm-3">Пост:</dt>
+          <dd class="col-sm-9" style="color: #4682B4">{{ post.text }}
+          {% thumbnail post.image "960x339" crop="center" upscale=True as im %}
+               <img class="card-img my-2" src="{{ im.url }}">
+          {% endthumbnail %}
+          </dd>
+        </dl>
+    </ul>
+    {% for comment in comments %}
+      <div class="media mb-4">
+        <div class="media-body">
+          <h5 class="mt-0">
+            <a href="{% url 'posts:profile' comment.author.username %}">
+              {{ comment.author.username }}
+            </a>
+          </h5>
+          <p>
+            {{ comment.text }}
+          </p>
+        </div>
+      </div>
+    {% endfor %}
+    {% if post.group %}
+      <button type="submit" class="btn btn-outline-primary">
+        <a href="{% url 'posts:group_list' post.group.slug %}" style="text-decoration:none">
+          Записи группы
+        </a>
+      </button>
+      <button type="submit" style="text-decoration:none" class="btn btn-outline-primary" >
+        <a href="{% url 'posts:profile' post.author.username %}" style="text-decoration:none">
+                Все посты пользователя
+        </a>
+      </button>
+    {% else %}
+      <button type="submit" style="text-decoration:none" class="btn btn-outline-primary" >
+        <a href="{% url 'posts:profile' post.author.username %}" style="text-decoration:none">
+                Все посты пользователя
+        </a>
+      </button>
+    {% endif %}
+  {% if not forloop.last %}<hr>{% endif %}
+  </article>
+  {% endfor %}
+  {% include 'includes/paginator.html' %}
+{% endblock %}
+{% endcache %}
