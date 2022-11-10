@@ -62,11 +62,9 @@ class PostFormsTest(TestCase):
         }
         response = self.authorized_client.post(reverse('posts:post_create'),
                                                data=form_data, follow=True)
-        self.assertRedirects(response,
-                             reverse('posts:profile',
-                                     kwargs={
-                                         'username': self.author.username
-                                     }))
+        self.assertRedirects(response, reverse(
+            'posts:profile',
+            kwargs={'username': self.author.username}))
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertEqual(Post.objects.count(), posts_count + 1)
         post = Post.objects.first()
