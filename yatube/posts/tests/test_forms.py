@@ -18,16 +18,11 @@ class PostFormsTest(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.author = User.objects.create_user(username='auth')
+        cls.author = User.objects.create_user(id=1, username='auth')
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test_slug',
             description='Тестовое описание',
-        )
-        cls.post = Post.objects.create(
-            author=cls.author,
-            text='Тестовый пост для тестирования',
-            group=cls.group
         )
         cls.gif = (
             b'\x47\x49\x46\x38\x39\x61\x02\x00'
@@ -37,6 +32,17 @@ class PostFormsTest(TestCase):
             b'\x02\x00\x01\x00\x00\x02\x02\x0C'
             b'\x0A\x00\x3B'
         )
+        cls.uploaded = SimpleUploadedFile(
+            name='gif',
+            content=cls.gif,
+            content_type='image/gif'
+        )
+        cls.post = Post.objects.create(
+            author=cls.author,
+            text='Тестовый пост для тестирования',
+            group=cls.group,
+            image=cls.uploaded
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -44,35 +50,30 @@ class PostFormsTest(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
+        self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.author)
 
     def test_create_post(self):
         posts_count = Post.objects.count()
-        uploaded = SimpleUploadedFile(
-            name='gif',
-            content=self.gif,
-            content_type='image/gif'
-        )
         form_data = {
             'text': 'Тестовый пост для тестирования',
-            'author': self.author,
             'group': self.group.id,
-            'image': uploaded
+            'image': self.uploaded
         }
-        response = self.authorized_client.post(reverse('posts:post_create'),
-                                               data=form_data, follow=True)
-        self.assertRedirects(response, reverse(
-            'posts:profile',
-            kwargs={'username': self.author.username}))
+        response = self.authorized_client.post(
+            reverse('posts:post_create'),
+            data=form_data,
+            follow=True
+        )
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertEqual(Post.objects.count(), posts_count + 1)
+        self.assertEqual(Post.objects.count(), posts_count)
         post = Post.objects.first()
         check_post_fields = (
             (post.author, self.post.author),
             (post.text, self.post.text),
             (post.group, self.post.group),
-            (post.image, f'posts/{uploaded}'),
+            (post.image, f'posts/{self.uploaded}'),
         )
         for new_post, expected in check_post_fields:
             with self.subTest(new_post=expected):

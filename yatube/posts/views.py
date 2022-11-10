@@ -57,7 +57,7 @@ def post_create(request):
         files=request.FILES or None
     )
     if form.is_valid():
-        post = form.save(commit=False)
+        post = form.save(commit=True)
         post.author = request.user
         post.save()
         return redirect('posts:profile', post.author)
