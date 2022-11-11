@@ -137,11 +137,11 @@ class PostPagesTests(TestCase):
                 self.assertEqual(response.context['is_edit'], True)
 
     def test_check_post_on_create(self):
-        pages = [
+        pages = (
             reverse('posts:index'),
             reverse('posts:group_list', kwargs={'slug': self.group.slug}),
             reverse('posts:profile', kwargs={'username': self.user}),
-        ]
+        )
         for page in pages:
             with self.subTest(page=page):
                 response = self.authorized_client.get(page)
@@ -175,11 +175,9 @@ class PostPaginatorTests(TestCase):
             slug='test-slug',
             description='Тестовое описание',
         )
-        batch = []
-        for i in range(13):
-            batch.append(Post(author=cls.user,
-                              text='Тестовый пост для тестирования',
-                              group=cls.group))
+        batch = [Post(author=cls.user,
+                      text='Тестовый пост для тестирования',
+                      group=cls.group) for i in range(13)]
         cls.post = Post.objects.bulk_create(batch, batch_size=13)
 
     def setUp(self):
@@ -217,55 +215,63 @@ class PostPaginatorTests(TestCase):
 
 
 class FollowTests(TestCase):
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.user_follower = User.objects.create_user(username='user')
-        cls.user_following = User.objects.create_user(username='user_1')
+        cls.subscriber = User.objects.create_user(username='follower')
+        cls.subscriber_2 = User.objects.create_user(
+            username='subscriber_2')
+        cls.author = User.objects.create_user(username='following')
+        cls.follow = Follow.objects.create(
+            user=cls.subscriber,
+            author=cls.author,
+        )
         cls.post = Post.objects.create(
-            author=cls.user_following,
             text='Тестовый текст',
+            author=cls.author,
         )
 
     def setUp(self):
-        self.following_client = Client()
-        self.follower_client = Client()
-        self.following_client.force_login(self.user_following)
-        self.follower_client.force_login(self.user_follower)
+        self.authorized_client = Client()
+        self.authorized_client.force_login(self.subscriber)
+        self.subscriber_2_client = Client()
+        self.subscriber_2_client.force_login(self.subscriber_2)
+        cache.clear()
 
     def test_follow(self):
         """Зарегистрированный пользователь может подписываться."""
-        follower_count = Follow.objects.count()
-        self.follower_client.get(reverse(
-            'posts:profile_follow',
-            args=(self.user_following.username,)))
-        self.assertEqual(Follow.objects.count(), follower_count + 1)
+        self.authorized_client.get(
+            reverse('posts:profile_follow', kwargs={'username': self.author})
+        )
+        self.assertTrue(Follow.objects.filter(
+            user=self.subscriber,
+            author=self.author,
+        ).exists())
 
     def test_unfollow(self):
         """Зарегистрированный пользователь может отписаться."""
-        Follow.objects.create(
-            user=self.user_follower,
-            author=self.user_following
+        self.authorized_client.get(
+            reverse('posts:profile_unfollow', kwargs={'username': self.author})
         )
-        follower_count = Follow.objects.count()
-        self.follower_client.get(reverse(
-            'posts:profile_unfollow',
-            args=(self.user_following.username,)))
-        self.assertEqual(Follow.objects.count(), follower_count - 1)
+        self.assertFalse(Follow.objects.filter(
+            user=self.subscriber,
+            author=self.author,
+        ).exists())
 
-    def test_new_post_see_follower(self):
-        """Пост появляется в ленте подписавшихся."""
-        posts = Post.objects.create(
-            text=self.post.text,
-            author=self.user_following,
-        )
-        follow = Follow.objects.create(
-            user=self.user_follower,
-            author=self.user_following
-        )
-        response = self.follower_client.get(reverse('posts:follow_index'))
-        post = response.context['page_obj'][0]
-        self.assertEqual(post, posts)
-        follow.delete()
-        response_2 = self.follower_client.get(reverse('posts:follow_index'))
-        self.assertEqual(len(response_2.context['page_obj']), 0)
+    def test_follow_page_follower(self):
+        """Проверка, что посты появляются по подписке."""
+        response = self.authorized_client.get(reverse(
+            'posts:follow_index'
+        ))
+        follower_posts_cnt = len(response.context['page_obj'])
+        self.assertEqual(follower_posts_cnt, 1)
+        post = Post.objects.get(id=self.post.pk)
+        self.assertIn(post, response.context['page_obj'])
+
+    def test_follow_page_unfollower(self):
+        """Проверка, что посты не появляются если не подписан."""
+        response = self.subscriber_2_client.get(reverse(
+            'posts:follow_index'))
+        posts_cnt_new = len(response.context['page_obj'].object_list)
+        self.assertEqual(posts_cnt_new, 0)

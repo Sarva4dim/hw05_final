@@ -75,7 +75,7 @@ class Comment(models.Model):
     )
 
     class Meta:
-        ordering = ['created']
+        ordering = ('created',)
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
 
@@ -96,3 +96,6 @@ class Follow(models.Model):
         verbose_name='Подписчик',
         related_name='following'
     )
+
+    class Meta:
+        unique_together = ['user', 'author']
